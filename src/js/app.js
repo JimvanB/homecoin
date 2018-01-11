@@ -87,7 +87,7 @@ App = {
         var homeTemplate = $('#homeTemplate');
         homeTemplate.find('.panel-title').text(home[3]);
         homeTemplate.find('.home-description').text(home[4]);
-        homeTemplate.find('.block-price').text(etherPrice + " ETH");
+        homeTemplate.find('.block-price').text("€"+etherPrice+",-");
         homeTemplate.find('.seller-blocks').text("10000/10000");
         homeTemplate.find('.btn-buy').attr("data-id", home[0]);
         homeTemplate.find('.btn-buy').attr("data-value", etherPrice);
@@ -101,9 +101,11 @@ App = {
         if (home[1] == App.account) {
             homeTemplate.find('.home-seller').text("You");
             homeTemplate.find('.btn-buy').hide();
+            homeTemplate.find('.btn-add-holder').show();
         } else {
             homeTemplate.find('.home-seller').text(home[1]);
             homeTemplate.find('.btn-buy').show();
+            homeTemplate.find('.btn-add-holder').hide();
         }
 
         homesRow.append(homeTemplate.html());
@@ -170,5 +172,8 @@ App = {
 $(function () {
     $(window).load(function () {
         App.init();
+        $.getJSON( "https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=EUR", function( data ) {
+            console.log( data.EUR);
+        });
     });
 });
