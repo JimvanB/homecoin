@@ -68,8 +68,11 @@ App = {
 
             for (var i = 0; i < homeIds.length; i++) {
                 homeId = homeIds[i];
-                chainListInstance.homes(homeId).then(function (home) {
+                chainListInstance.getHome(homeId).then(function (home) {
                     App.displayHome(home);
+                    return home;
+                }).then(function (home) {
+                    App.setShareHolders(home);
                 });
             }
             App.loading = false;
@@ -80,23 +83,19 @@ App = {
     },
 
     displayHome: function (home) {
-        console.log(home);
+        console.log("dh:" + home);
         var homesRow = $('#homesRow');
-        var etherPrice = web3.fromWei(home[5], "ether");
+        var etherPrice = web3.fromWei(home[4], "ether");
         console.log(etherPrice);
         var homeTemplate = $('#homeTemplate');
-        homeTemplate.find('.panel-title').text(home[3]);
-        homeTemplate.find('.home-description').text(home[4]);
-        homeTemplate.find('.block-price').text("€"+etherPrice+",-");
+        homeTemplate.find('.panel-title').text(home[2]);
+        homeTemplate.find('.home-id').text(home[0]);
+        homeTemplate.find('.home-description').text(home[3]);
+        homeTemplate.find('.block-price').text("€" + etherPrice + ",-");
         homeTemplate.find('.seller-blocks').text("10000/10000");
+        homeTemplate.find('.num-share').text(home[5]);
         homeTemplate.find('.btn-buy').attr("data-id", home[0]);
         homeTemplate.find('.btn-buy').attr("data-value", etherPrice);
-
-        if(home[2] === 0x0){
-            homeTemplate.find('.owners').text("None yet");
-        } else {
-            homeTemplate.find('.owners').text(home[2]);
-        }
 
         if (home[1] == App.account) {
             homeTemplate.find('.home-seller').text("You");
@@ -111,6 +110,50 @@ App = {
         homesRow.append(homeTemplate.html());
     },
 
+    setShareHolders: function (home) {
+
+        var appender = $('#appender');
+
+        var chainListInstance;
+        App.contracts.HomeCoin.deployed().then(function (instance) {
+            chainListInstance = instance;
+            var translateRequests = [];
+
+            for (var i = 1; i <= home[5]; i++) {
+                translateRequests.push(chainListInstance.getHomeShareHolder(home[0], i));
+            }
+
+
+            Promise.all(translateRequests).then(function (translateResults) {
+                console.log(translateResults);
+                for (var j = 0; j < translateResults.length; j++) {
+                    appender.append('' +
+                        '<label>Shareholder ' + (j+1) + ':</label>' +
+                        ' <div class="row">' +
+                        '<div class="col-md-2"><b>Address: </b></div>' +
+                        '<div class="col-md-8">' + translateResults[j][0] + '</div>' +
+                        '</div>' +
+                        ' <div class="row">' +
+                        '<div class="col-md-2"><b>Shares: </b></div>' +
+                        '<div class="col-md-8">' + translateResults[j][1] + '</div>' +
+                        '</div>' +
+                        ' <div class="row">' +
+                        '<div class="col-md-2"><b>For Sale: </b></div>' +
+                        '<div class="col-md-8">' + translateResults[j][1] + '</div>' +
+                        '</div><br>');
+                }
+            });
+        });
+        /*.then(function (sh) {
+
+         var sh2 = sh;
+         console.log(sh2)
+         appender.append('<div class="form-group"><label for="home_name">Shareholder address</label>' + sh2[0] + '</div>');
+         });*/
+
+
+    },
+
     sellHome: function () {
         var _homeName = $("#home_name").val();
         var _homeDescription = $("#home_description").val();
@@ -121,12 +164,16 @@ App = {
             return false;
         }
         App.contracts.HomeCoin.deployed().then(function (instance) {
-            return instance.sellHome(_homeName, _homeDescription, _homePrice, App.account, {from: App.account, gas: 500000});
+            return instance.sellHome(_homeName, _homeDescription, _homePrice, App.account, {
+                from: App.account,
+                gas: 500000
+            });
         }).catch(function (err) {
             console.log(err.message);
         });
 
-    },
+    }
+    ,
 
     listenToEvents: function () {
         App.contracts.HomeCoin.deployed().then(function (instance) {
@@ -147,7 +194,8 @@ App = {
             });
 
         });
-    },
+    }
+    ,
 
     buyHome: function () {
         event.preventDefault();
@@ -166,14 +214,16 @@ App = {
         }).catch(function (err) {
             console.log(err.message);
         });
-    },
-};
+    }
+    ,
+}
+;
 
 $(function () {
     $(window).load(function () {
         App.init();
-        $.getJSON( "https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=EUR", function( data ) {
-            console.log( data.EUR);
+        $.getJSON("https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=EUR", function (data) {
+            console.log(data.EUR);
         });
     });
 });

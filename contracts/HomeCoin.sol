@@ -2,24 +2,27 @@ pragma solidity ^0.4.11;
 
 contract HomeCoin {
 
+    struct ShareHolder {
+        address adrs;
+        uint shares;
+    }
+
     //custom typeof
     struct Home {
         uint id;
         address seller;
-        address owners;
+        uint[] shareHoldersList;
+        mapping(uint => ShareHolder) shareHolders;
         string name;
         string description;
         uint256 price;
     }
 
-    struct Owner {
-        address owner;
-        uint blocks;
-    }
-
     // State variables
-    mapping(uint => Home) public homes;
+    mapping(uint => Home) homes;
+    uint[] homeList;
     uint homeCounter = 0;
+    uint shareHolderCounter = 0;
     uint totalBlocks = 10000;
 
     //sell home event
@@ -30,8 +33,39 @@ contract HomeCoin {
     // sell an home
     function sellHome(string _name, string _description, uint256 _price, address ownersAdresses) public {
         homeCounter++;
-        homes[homeCounter] = Home(homeCounter, msg.sender, ownersAdresses, _name, _description, _price);
+        homes[homeCounter].id = homeCounter;
+        homes[homeCounter].seller = msg.sender;
+        homes[homeCounter].name = _name;
+        homes[homeCounter].description = _description;
+        homes[homeCounter].price = _price;
+        homeList.push(homeCounter);
         sellHomeEvent(homeCounter, msg.sender, ownersAdresses, _name, _description, _price);
+    }
+
+
+    function getHome(uint _id) public constant returns (uint id, address seller, string name, string description, uint256 price, uint numOfShareHolders)
+    {
+        return(
+        homes[_id].id,
+        homes[_id].seller,
+        homes[_id].name,
+        homes[_id].description,
+        homes[_id].price,
+        homes[_id].shareHoldersList.length);
+    }
+
+    function addShareHolder(uint homeId, address shrAdr){
+        shareHolderCounter++;
+        homes[homeId].shareHoldersList.push(shareHolderCounter);
+        homes[homeId].shareHolders[shareHolderCounter].adrs = shrAdr;
+        homes[homeId].shareHolders[shareHolderCounter].shares = 0;
+    }
+
+    function getHomeShareHolder(uint _homeId, uint _shId) public constant returns(address adr, uint shares)
+    {
+        return(
+        homes[_homeId].shareHolders[_shId].adrs,
+        homes[_homeId].shareHolders[_shId].shares);
     }
 
     //buy home
