@@ -70,9 +70,6 @@ App = {
                 homeId = homeIds[i];
                 chainListInstance.getHome(homeId).then(function (home) {
                     App.displayHome(home);
-                    return home;
-                }).then(function (home) {
-                    App.setShareHolders(home);
                 });
             }
             App.loading = false;
@@ -83,17 +80,17 @@ App = {
     },
 
     displayHome: function (home) {
-        console.log("dh:" + home);
         var homesRow = $('#homesRow');
         var etherPrice = web3.fromWei(home[4], "ether");
-        console.log(etherPrice);
         var homeTemplate = $('#homeTemplate');
         homeTemplate.find('.panel-title').text(home[2]);
         homeTemplate.find('.home-id').text(home[0]);
         homeTemplate.find('.home-description').text(home[3]);
         homeTemplate.find('.block-price').text("€" + etherPrice + ",-");
-        homeTemplate.find('.seller-blocks').text("10000/10000");
         homeTemplate.find('.num-share').text(home[5]);
+        homeTemplate.find('.btn-add-holder').attr("data-id", home[0]);
+        homeTemplate.find('.btn-show-holders').attr("data-id", home[0]);
+        homeTemplate.find('.btn-sell-blocks').attr("data-id", home[0]);
         homeTemplate.find('.btn-buy').attr("data-id", home[0]);
         homeTemplate.find('.btn-buy').attr("data-value", etherPrice);
 
@@ -101,57 +98,95 @@ App = {
             homeTemplate.find('.home-seller').text("You");
             homeTemplate.find('.btn-buy').hide();
             homeTemplate.find('.btn-add-holder').show();
+            homeTemplate.find('.btn-sell-blocks').show();
         } else {
             homeTemplate.find('.home-seller').text(home[1]);
             homeTemplate.find('.btn-buy').show();
             homeTemplate.find('.btn-add-holder').hide();
+            homeTemplate.find('.btn-sell-blocks').hide();
         }
 
         homesRow.append(homeTemplate.html());
     },
 
-    setShareHolders: function (home) {
+    setShareHolders: function () {
 
-        var appender = $('#appender');
 
+        var _homeId = $(event.target).data('id');
+        console.log("HOMEID" + _homeId);
         var chainListInstance;
         App.contracts.HomeCoin.deployed().then(function (instance) {
             chainListInstance = instance;
-            var translateRequests = [];
+            return chainListInstance.getHome(_homeId);
+        }).then(function (home) {
+                var translateRequests = [];
 
-            for (var i = 1; i <= home[5]; i++) {
-                translateRequests.push(chainListInstance.getHomeShareHolder(home[0], i));
-            }
-
-
-            Promise.all(translateRequests).then(function (translateResults) {
-                console.log(translateResults);
-                for (var j = 0; j < translateResults.length; j++) {
-                    appender.append('' +
-                        '<label>Shareholder ' + (j+1) + ':</label>' +
-                        ' <div class="row">' +
-                        '<div class="col-md-2"><b>Address: </b></div>' +
-                        '<div class="col-md-8">' + translateResults[j][0] + '</div>' +
-                        '</div>' +
-                        ' <div class="row">' +
-                        '<div class="col-md-2"><b>Shares: </b></div>' +
-                        '<div class="col-md-8">' + translateResults[j][1] + '</div>' +
-                        '</div>' +
-                        ' <div class="row">' +
-                        '<div class="col-md-2"><b>For Sale: </b></div>' +
-                        '<div class="col-md-8">' + translateResults[j][1] + '</div>' +
-                        '</div><br>');
+                for (var i = 1; i <= home[5]; i++) {
+                    translateRequests.push(chainListInstance.getHomeShareHolder(home[0], i));
+                    translateRequests.push(chainListInstance.getSharesForHouseByShareHolder(home[0], i));
                 }
-            });
-        });
-        /*.then(function (sh) {
-
-         var sh2 = sh;
-         console.log(sh2)
-         appender.append('<div class="form-group"><label for="home_name">Shareholder address</label>' + sh2[0] + '</div>');
-         });*/
 
 
+                Promise.all(translateRequests).then(function (translateResults) {
+                    console.log(translateResults);
+                    var appender = $('#appender');
+                    appender.empty();
+
+                    var shareHolderSharesTemplate = $('#shareHolderShares');
+
+                    for (var j = 0; j < translateResults.length; j = j + 2) {
+
+                        if (translateResults[j][0] === App.account) {
+                            shareHolderSharesTemplate.find('.shareHolderLabel').text("You:");
+                        }
+                        else {
+                            shareHolderSharesTemplate.find('.shareHolderLabel').text("ShareHolder:");
+                        }
+                        shareHolderSharesTemplate.find('.shareholder-address').text(translateResults[j][0]);
+                        shareHolderSharesTemplate.find('.shares-total').text(translateResults[j + 1][0]);
+                        shareHolderSharesTemplate.find('.shares-for-sale').text(translateResults[j + 1][1]);
+                        appender.append(shareHolderSharesTemplate.html());
+                    }
+                });
+            }
+        );
+    },
+
+    sellBlocksShow: function () {
+
+
+        var _homeId = $(event.target).data('id');
+        console.log("HOMEID" + _homeId);
+        var chainListInstance;
+        App.contracts.HomeCoin.deployed().then(function (instance) {
+            chainListInstance = instance;
+            return chainListInstance.getHome(_homeId);
+        }).then(function (home) {
+                var translateRequests = [];
+
+                for (var i = 1; i <= home[5]; i++) {
+                    translateRequests.push(chainListInstance.getHomeShareHolder(home[0], i));
+                    translateRequests.push(chainListInstance.getSharesForHouseByShareHolder(home[0], i));
+                }
+
+
+                Promise.all(translateRequests).then(function (translateResults) {
+                    console.log(translateResults);
+                    var appender = $('#appender');
+                    appender.empty();
+
+                    var sellBlocksTemplate = $('#sellBlocks');
+
+                    for (var j = 0; j < translateResults.length; j = j + 2) {
+
+                        if (translateResults[j][0] === App.account) {
+                            sellBlocksTemplate.find('.num-of-shares').text("You own: "+translateResults[j+1][0]);
+                        }
+                        appender.append(sellBlocksTemplate.html());
+                    }
+                });
+            }
+        );
     },
 
     sellHome: function () {
@@ -165,6 +200,35 @@ App = {
         }
         App.contracts.HomeCoin.deployed().then(function (instance) {
             return instance.sellHome(_homeName, _homeDescription, _homePrice, App.account, {
+                from: App.account,
+                gas: 500000
+            });
+        }).catch(function (err) {
+            console.log(err.message);
+        });
+
+    }
+    ,
+
+    addHomeId: function () {
+        event.preventDefault();
+
+        var _homeId = $(event.target).data('id');
+        console.log(_homeId);
+        var addHolderTemplate = $('#addHolder');
+        addHolderTemplate.find('.add-holder').attr("data-id", _homeId);
+    }
+    ,
+
+    addShareHolder: function () {
+        event.preventDefault();
+
+        var _homeId = $(event.target).data('id');
+        console.log(_homeId);
+        var address = $("#holder_address").val();
+
+        App.contracts.HomeCoin.deployed().then(function (instance) {
+            return instance.addShareHolder(_homeId, address, {
                 from: App.account,
                 gas: 500000
             });
